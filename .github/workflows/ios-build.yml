@@ -1,0 +1,69 @@
+name: iOS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS Build profile'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - simulator
+          - production
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+  EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+  EXPO_PUBLIC_APP_GROUP_ID: ${{ secrets.EXPO_PUBLIC_APP_GROUP_ID }}
+
+jobs:
+  build:
+    name: Build iOS (${{ inputs.profile || 'development' }})
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Generate native project
+        run: npx expo prebuild -p ios --clean
+        env:
+          EXPO_NO_GIT_STATUS: 1
+
+      - name: Build with EAS
+        run: |
+          PROFILE="${{ inputs.profile || 'development' }}"
+          eas build --platform ios --profile "$PROFILE" --non-interactive --no-wait
+
+      - name: Upload artifact (IPA)
+        uses: actions/upload-artifact@v4
+        with:
+          name: winote-ios-${{ inputs.profile || 'development' }}
+          path: |
+            *.ipa
+            *.app
+          if-no-files-found: ignore
