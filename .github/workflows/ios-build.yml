@@ -38,6 +38,15 @@ jobs:
         env:
           EXPO_NO_GIT_STATUS: 1
 
+      - name: Setup Apple ID for signing
+        run: |
+          security create-keychain -p temp /tmp/build.keychain
+          security default-keychain -s /tmp/build.keychain
+          security unlock-keychain -p temp /tmp/build.keychain
+          xcrun altool --store-password-in-keychain-item "AC_PASSWORD" \
+            -u "${{ secrets.APPLE_ID }}" \
+            -p "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+
       - name: Build archive
         run: |
           xcrun xcodebuild \
@@ -51,6 +60,7 @@ jobs:
             archive -archivePath build/winote.xcarchive
 
       - name: Export IPA
+        if: success()
         run: |
           xcrun xcodebuild \
             -exportArchive \
@@ -60,6 +70,7 @@ jobs:
             -allowProvisioningUpdates
 
       - name: Upload IPA
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: winote-ios
