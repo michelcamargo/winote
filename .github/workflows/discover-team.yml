@@ -2,6 +2,9 @@ name: Discover Apple Team ID
 
 on: workflow_dispatch
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   discover:
     runs-on: macos-latest
