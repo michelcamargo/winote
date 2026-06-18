@@ -1,0 +1,23 @@
+name: Discover Apple Team ID
+
+on: workflow_dispatch
+
+jobs:
+  discover:
+    runs-on: macos-latest
+    steps:
+      - name: Store Apple ID in keychain
+        run: |
+          security create-keychain -p temp /tmp/build.keychain
+          security default-keychain -s /tmp/build.keychain
+          security unlock-keychain -p temp /tmp/build.keychain
+          xcrun altool --store-password-in-keychain-item "AC_PASSWORD" \
+            -u "${{ secrets.APPLE_ID }}" \
+            -p "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+      - name: List available teams
+        run: |
+          xcrun xcodebuild -list -showBuildSettings 2>&1 | grep -i "TEAM\|team" | head -20 || echo "No team found. Trying fastlane..."
+          if ! command -v fastlane &> /dev/null; then
+            sudo gem install fastlane -n /usr/local/bin 2>/dev/null
+          fi
+          fastlane spaceauth -u "${{ secrets.APPLE_ID }}" 2>&1 | head -30
